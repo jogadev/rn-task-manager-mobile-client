@@ -1,18 +1,18 @@
-import React, { useState, useRef } from "react";
-import { View, Text, StyleSheet, TextInput, Button } from "react-native"
+import React, { useState, useRef, useCallback } from "react";
+import { View, Text, StyleSheet, TextInput } from "react-native"
 import { useNavigation } from '@react-navigation/native';
 import { createNewUser } from "../common/APIEndpoints";
 import LinearGradient from 'react-native-linear-gradient';
 import LogoCaption from "../main/LogoCaption";
 import { TouchableWithoutFeedback } from "react-native-gesture-handler";
-
+import { CommonActions } from "@react-navigation/native"
 const styles = StyleSheet.create({
     body: {
         flex: 1,
         alignItems: "center",
         justifyContent: "center",
         width: "80%",
-        maxWidth: 600
+        maxWidth: 600,
     },
     wrapper: {
         flex: 1,
@@ -56,7 +56,7 @@ const styles = StyleSheet.create({
 
 
 function SignUp(props) {
-    const [state, setState] = useState( {
+    const [state, setState] = useState({
         email: null,
         name: null,
         age: null,
@@ -66,48 +66,59 @@ function SignUp(props) {
         error: null
     });
 
-    const tiEmail = useRef();
-    const tiAge = useRef();
-    const tiPassword = useRef();
-    const tiPasswordConfirm = useRef();
-    const setError = handleChange("error");
-    const setWarning = handleChange("warning");
-    const navigation = useNavigation();
-
-    async function attemptSignup({email, name, age, password}){
-        console.log("Attempt signup");
+    async function attemptSignup({ email, name, age, password }) {
         const signUpResult = await createNewUser(name, email, age, password);
-        if(signUpResult.error)
+        if (signUpResult.error)
             setError(signUpResult.error);
-        else{
-            console.log("Signup complete!");            
-            navigation.replace('Profile', {
-                token: signUpResult.data.token
+        else {
+            console.log("Signup complete!");
+            navigation.reset({
+                index: 0,
+                routes: [
+                    {
+                        name: "Profile",
+                        params: {
+                            token: signUpResult.data.token
+                        }
+                    }
+                ]
             });
         }
     }
 
-    function handleChange(id){
-        return text => {        
-            setState({...state, [id]: text});
-        }
-    }
+    const handleChange = useCallback(
+        key => value => { setState(prev => ({ ...prev, [key]: value })) },
+        [setState]
+    )
 
-    function validateForm(){
-        if(!state.name)
+    const tiEmail = useRef();
+    const tiAge = useRef();
+    const tiPassword = useRef();
+    const tiPasswordConfirm = useRef();
+    const focusEmail = useCallback(() => { tiEmail.current.focus() }, [tiEmail])
+    const focusAge = useCallback(() => { tiAge.current.focus() }, [tiAge])
+    const focusPassword = useCallback(() => { tiPassword.current.focus() }, [tiPassword])
+    const focusPasswordConfirm = useCallback(() => { tiPasswordConfirm.current.focus() }, [tiPasswordConfirm])
+    const setError = handleChange("error");
+    const setWarning = handleChange("warning");
+    const navigation = useNavigation();
+
+    function validateForm() {
+        console.log(state);
+        if (!state.name)
             setWarning("Please provide a name");
-        else if(!state.email || !state.email.includes("@"))
+        else if (!state.email || !state.email.includes("@"))
             setWarning("Please provide a valid email address");
-        else if(!state.age || parseInt(state.age) <= 0)
-           setWarning("Please provide a valid age");
-        else if(!state.password || !state.passwordConfirm)
+        else if (!state.age || parseInt(state.age) <= 0)
+            setWarning("Please provide a valid age");
+        else if (!state.password || !state.passwordConfirm)
             setWarning("Please provide a password and confirm it");
-        else if(state.password != state.passwordConfirm)
+        else if (state.password != state.passwordConfirm)
             setWarning("Passwords must match");
-        else{
+        else {
             setWarning("");
             attemptSignup(state);
-        }    
+        }
     }
 
     const commonProps = {
@@ -115,24 +126,27 @@ function SignUp(props) {
         style: styles.inputs
     }
 
+    console.clear()
+
     return (
-        <LinearGradient colors={["#FD9766", "#2D2920", "#2D2920"]}style={styles.wrapper}>
+        <LinearGradient colors={["#FD9766", "#2D2920", "#2D2920"]} style={styles.wrapper}>
             <View style={styles.body}>
-                <LogoCaption 
-                    caption="Signup" 
-                    style={{marginBottom: 60}}
-                    />
+                <LogoCaption
+                    caption="Signup"
+                    style={{ marginBottom: 60 }}
+                />
 
                 <TextInput
                     placeholder="Full name"
-                    onSubmitEditing={() => {tiEmail.current.focus()}}
+                    onSubmitEditing={focusEmail}
                     onChangeText={handleChange("name")}
-                    {...commonProps}/>
+                    data-name="fullName"
+                    {...commonProps} />
 
                 <TextInput
                     placeholder="Email"
                     ref={tiEmail}
-                    onSubmitEditing={() => {tiAge.current.focus()}}
+                    onSubmitEditing={focusAge}
                     keyboardType="email-address"
                     onChangeText={handleChange("email")}
                     {...commonProps} />
@@ -141,7 +155,7 @@ function SignUp(props) {
                     placeholder="Age"
                     keyboardType="number-pad"
                     ref={tiAge}
-                    onSubmitEditing={() => {tiPassword.current.focus()}}
+                    onSubmitEditing={focusPassword}
                     onChangeText={handleChange("age")}
                     {...commonProps} />
 
@@ -150,7 +164,7 @@ function SignUp(props) {
                     keyboardType="web-search"
                     secureTextEntry={true}
                     ref={tiPassword}
-                    onSubmitEditing={() => {tiPasswordConfirm.current.focus()}}
+                    onSubmitEditing={focusPasswordConfirm}
                     onChangeText={handleChange("password")}
                     {...commonProps} />
 
@@ -160,11 +174,11 @@ function SignUp(props) {
                     ref={tiPasswordConfirm}
                     onSubmitEditing={validateForm}
                     onChangeText={handleChange("passwordConfirm")}
-                    {...commonProps}/>
+                    {...commonProps} />
 
                 <Text style={styles.warningText}>{state.warning}</Text>
                 <Text style={styles.errorText}>{state.error}</Text>
-                <TouchableWithoutFeedback onPress={validateForm} style={{width: 200}}>
+                <TouchableWithoutFeedback onPress={validateForm} style={{ width: 200 }}>
                     <Text style={styles.button}>Continue</Text>
                 </TouchableWithoutFeedback>
             </View>
